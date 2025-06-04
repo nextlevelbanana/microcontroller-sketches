@@ -1,4 +1,4 @@
-
+//for Arduino Leonardo - not all Arduinos support keyboard.h !
 #include <Keyboard.h>
 
 bool isBeamBroken[] = {false, false, false, false}; //left, right, up, down
