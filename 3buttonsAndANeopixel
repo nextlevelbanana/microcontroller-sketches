@@ -1,0 +1,172 @@
+//Board: Adafruit KB2040
+//this sketch powers 3 "massive" (100mm) arcade buttons, mapping them to the left/right/down arrows,
+//and also to red/yellow/blue.
+//It lights up the Neopixel according to what color you've "mixed"
+//and clears the Neopixel when the computer sends the letter "F" over the serial connection.
+
+#include "Keyboard.h"
+#include <Adafruit_NeoPixel.h>
+
+//onboard neopixel
+#define NUMPIXELS        1
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+
+// "LED" here means the LED inside the giant buttons
+const int redButtonPin = 5;
+const int redLEDPin = 1;
+
+const int yelButtonPin = 4;
+const int yelLEDPin = 6;
+
+const int bluButtonPin = 7;
+const int bluLEDPin = 10;
+
+// variables will change:
+int redButtonState = HIGH; 
+int redLEDState = HIGH; 
+int yelButtonState = HIGH; 
+int yelLEDState = HIGH; 
+int bluButtonState = HIGH; 
+int bluLEDState = HIGH; 
+
+long lastRedPress = 0;
+long lastYelPress = 0;
+long lastBluPress = 0;
+
+//array of pressed buttons: [red, yellow, blue]
+bool isPressed[] = {false, false, false};
+
+void setup() {
+  // initialize the LED pin as an output:
+  pinMode(redLEDPin, OUTPUT);
+  pinMode(yelLEDPin, OUTPUT);
+  pinMode(bluLEDPin, OUTPUT);
+
+  digitalWrite(redLEDPin, redLEDState);
+  digitalWrite(yelLEDPin, yelLEDState);
+  digitalWrite(bluLEDPin, bluLEDState);
+
+
+  // initialize the pushbutton pin as an input:
+  Serial.begin(9600);
+  Keyboard.begin();
+  pinMode(redButtonPin, INPUT_PULLUP);
+  pinMode(yelButtonPin, INPUT_PULLUP);
+  pinMode(bluButtonPin, INPUT_PULLUP);
+  Serial.println("hello world");
+
+  #if defined(NEOPIXEL_POWER)
+    // If this board has a power control pin, we must set it to output and high
+    // in order to enable the NeoPixels. We put this in an #if defined so it can
+    // be reused for other boards without compilation errors
+    pinMode(NEOPIXEL_POWER, OUTPUT);
+    digitalWrite(NEOPIXEL_POWER, HIGH);
+  #endif
+
+  pixels.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
+  pixels.setBrightness(20); // not so bright
+}
+
+void lightUpNeoPixels() {
+  //this function is verbose for the sake of clarity
+
+  //off
+  if (!isPressed[0] && !isPressed[1] && !isPressed[2]) {
+      pixels.fill(0x000000);
+  }
+
+  //red
+  if (isPressed[0] && !isPressed[1] && !isPressed[2]) {
+    pixels.fill(0xFF0000);
+  }
+
+  //orange
+  if (isPressed[0] && isPressed[1] && !isPressed[2]) {
+      pixels.fill(0xFF3300);
+  }
+
+  //yellow
+  if (!isPressed[0] && isPressed[1] && !isPressed[2]) {
+      pixels.fill(0xFFFF00);
+  }
+
+  //green
+  if (!isPressed[0] && isPressed[1] && isPressed[2]) {
+      pixels.fill(0x00FF00);
+  }
+
+  //blue
+  if (!isPressed[0] && !isPressed[1] && isPressed[2]) {
+      pixels.fill(0x0000FF);
+  }
+
+  //purple
+  if (isPressed[0] && !isPressed[1] && isPressed[2]) {
+      pixels.fill(0x5F38FF);
+  }
+
+  //brown... is hard to make with RGB
+  if (isPressed[0] && isPressed[1] && isPressed[2]) {
+      pixels.fill(0x7c3113);
+  }
+  pixels.show();
+}
+
+void loop() {
+  // read the state of the pushbutton value:
+  redButtonState = digitalRead(redButtonPin);
+  yelButtonState = digitalRead(yelButtonPin);
+  bluButtonState = digitalRead(bluButtonPin);
+
+  long now = millis();
+
+
+  // check if the pushbutton is pressed. If it is, the buttonState is LOW, we're doing this inverted for some reason:
+  if (redButtonState == LOW) {
+    if (lastRedPress == 0 || now - lastRedPress > 200) {
+      Serial.println("boop left!"); 
+      Keyboard.press(KEY_LEFT_ARROW);
+      lastRedPress = now;
+      isPressed[0] = true;
+    }
+  }
+
+  if (yelButtonState == LOW) {
+    if (lastYelPress == 0 || now - lastYelPress > 200) {
+      Serial.println("boop mid!");
+      Keyboard.press(KEY_DOWN_ARROW);
+      lastYelPress = now;
+      isPressed[1] = true;
+    }
+  }
+
+  if (bluButtonState == LOW) {
+    if (lastBluPress == 0 || now - lastBluPress > 200) {
+      Serial.println("boop rt!");
+      Keyboard.press(KEY_RIGHT_ARROW);
+      lastBluPress = now;
+      isPressed[2] = true;
+    }
+  }
+
+
+    //listen for the "clear" signal from the computer
+    if (Serial.available() > 0) {
+      // read the incoming byte:
+      int incomingByte = Serial.read();
+      // say what you got:
+      Serial.print("I received: ");
+      Serial.println(incomingByte, DEC);
+
+      if (incomingByte == 70) { //F
+        isPressed[0] = false;
+        isPressed[1] = false;
+        isPressed[2] = false;
+      }
+  } 
+
+  lightUpNeoPixels();
+  
+
+  Keyboard.releaseAll();
+}
